@@ -1,0 +1,9 @@
+Company: ABC Tech
+Industry: SaaS
+Focus: AI-based CRM solutions
+Target Market: Startups and SMEs
+
+Company: XYZ Health
+Industry: Healthcare
+Focus: Digital patient management
+Target Market: Hospitals
