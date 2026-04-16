@@ -19,13 +19,22 @@ export default function Home() {
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/run-bdr-agent", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        "https://ai-bdr-system.onrender.com/run-bdr-agent",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Backend error");
+      }
 
       const data = await response.json();
-      setResults(data.results);
+
+      // ✅ Wrap single response into array
+      setResults([data]);
 
     } catch (error) {
       console.error(error);
@@ -60,23 +69,28 @@ export default function Home() {
 
       {/* Results */}
       <div className="mt-10">
-        {results.map((item, index) => (
-          <div key={index} className="border p-4 mb-4 rounded">
+        {results.length > 0 && results.map((item, index) => (
+          <div key={index} className="border p-4 mb-4 rounded shadow">
 
-            <h2 className="font-bold">
-              {item.name} ({item.company})
+            <h2 className="font-bold text-lg mb-2">
+              Lead Analysis Result
             </h2>
 
-            <p><b>Industry:</b> {item.industry}</p>
+            <p className="mb-2">
+              <b>Insights:</b><br />
+              {item.insights}
+            </p>
 
-            <p><b>Insights:</b> {item.insights}</p>
-
-            <p><b>Email:</b></p>
-            <pre className="bg-gray-100 p-2 whitespace-pre-wrap">
+            <p className="mb-2">
+              <b>Email:</b>
+            </p>
+            <pre className="bg-gray-100 p-3 whitespace-pre-wrap rounded mb-2">
               {item.email}
             </pre>
 
-            <p><b>Score:</b> {item.score}</p>
+            <p>
+              <b>Score:</b> {item.score}
+            </p>
 
           </div>
         ))}
