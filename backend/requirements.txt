@@ -3,3 +3,4 @@ uvicorn
 pandas
 python-dotenv
 groq
+python-multipart
