@@ -7,8 +7,6 @@ import pandas as pd
 import os
 from groq import Groq
 
-from rag.rag_pipeline import create_vector_store, query_vector_store
-
 # ✅ Agents
 from agents.research_agent import research_agent
 from agents.enrichment_agent import enrichment_agent
@@ -36,29 +34,6 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 @app.get("/")
 def home():
     return {"message": "RAG API Running"}
-
-
-# -----------------------------
-# CREATE VECTOR DB
-# -----------------------------
-@app.get("/create-db")
-def create_db():
-    create_vector_store()
-    return {"message": "Vector DB created successfully"}
-
-
-# -----------------------------
-# ASK (RAG QA)
-# -----------------------------
-class QueryRequest(BaseModel):
-    query: str
-
-
-@app.post("/ask")
-def ask(request: QueryRequest):
-    answer = query_vector_store(request.query)
-    return {"response": answer}
-
 
 # -----------------------------
 # 🔥 MULTI-AGENT BDR SYSTEM
@@ -116,9 +91,7 @@ class FollowupRequest(BaseModel):
 @app.post("/generate-followup")
 def generate_followup(req: FollowupRequest):
 
-    context = query_vector_store(
-        f"Tell me about {req.company} in {req.industry}"
-    )
+    context = f"{req.company} operates in the {req.industry} industry."
 
     tone = "gentle reminder" if req.followup_number == 1 else "slightly persuasive"
 

@@ -4,27 +4,16 @@ import os
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def email_agent(name, company, insights):
-
     prompt = f"""
-You are a BDR expert.
+Write a professional cold email.
 
-Write a cold email.
-
-Lead:
 Name: {name}
 Company: {company}
-
-Insights:
-{insights}
-
-Rules:
-- Subject + Body
-- Short (100-120 words)
-- Persuasive
+Insights: {insights}
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="llama3-8b-8192",
         messages=[{"role": "user", "content": prompt}]
     )
 

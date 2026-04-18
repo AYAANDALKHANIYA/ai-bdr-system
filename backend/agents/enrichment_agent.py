@@ -4,24 +4,10 @@ import os
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def enrichment_agent(company, industry, context):
-
-    prompt = f"""
-You are a business analyst.
-
-Analyze the company and provide:
-- What they do
-- Pain points
-- AI automation opportunities
-
-Company: {company}
-Industry: {industry}
-
-Context:
-{context}
-"""
+    prompt = f"Give insights for {company} based on: {context}"
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="llama3-8b-8192",
         messages=[{"role": "user", "content": prompt}]
     )
 
