@@ -51,19 +51,39 @@ def run_bdr_agent(file: UploadFile = File(...)):
         print(f"🚀 Processing: {name}, {company}")
 
         prompt = f"""
-You are an expert AI Business Development Representative.
+You are a senior AI Business Development Representative.
 
-For the given lead:
-Name: {name}
-Company: {company}
-Industry: {industry}
+Analyze the lead deeply and generate HIGH-QUALITY output.
 
-Generate:
-1. Key insights about the company
-2. A personalized cold email
-3. A lead score (0-100)
+Lead Details:
+- Name: {name}
+- Company: {company}
+- Industry: {industry}
 
-Return ONLY in this JSON format:
+INSTRUCTIONS:
+
+1. INSIGHTS:
+- Give detailed, realistic insights about the company
+- Mention possible business model, challenges, opportunities
+- Explain WHY they might need AI solutions
+- Minimum 4-5 lines
+
+2. EMAIL:
+- Write a highly personalized cold email
+- Include:
+    • Subject line
+    • Strong opening (not generic)
+    • Clear value proposition
+    • Use-case relevant to their industry
+    • CTA (call to action)
+- Make it sound human, premium, and persuasive
+- Minimum 8–10 lines
+
+3. SCORE:
+- Give a realistic lead score (0–100)
+- Based on potential fit for AI solutions
+
+Return ONLY valid JSON:
 {{
     "insights": "...",
     "email": "...",
