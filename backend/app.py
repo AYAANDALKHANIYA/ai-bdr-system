@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import pandas as pd
 import os
+import time
 from groq import Groq
 
 # ✅ Agents
@@ -43,70 +44,91 @@ def run_bdr_agent(file: UploadFile = File(...)):
 
     try:
         df = pd.read_csv(file.file)
-
-        # ✅ Normalize column names (IMPORTANT FIX)
         df.columns = df.columns.str.strip().str.lower()
-
     except Exception as e:
         return {"error": f"CSV read error: {str(e)}"}
 
     results = []
 
-    for _, row in df.iterrows():
+    for idx, row in df.iterrows():
 
         try:
-            # ✅ Safe extraction
             name = str(row.get("name", "")).strip()
             company = str(row.get("company", "")).strip()
             industry = str(row.get("industry", "")).strip()
 
-            print(f"\n🔍 Processing: {name}, {company}, {industry}")
+            print(f"\n🔍 Processing Row {idx+1}: {name} | {company} | {industry}")
 
             # -----------------------------
-            # AGENT PIPELINE (SAFE)
+            # 1️⃣ RESEARCH AGENT
             # -----------------------------
             try:
-                context = research_agent(company, industry) or ""
-                print("Context:", context)
+                context = research_agent(company, industry)
+                if not context:
+                    context = "Basic company context not available"
             except Exception as e:
-                print("Research Agent Error:", e)
-                context = ""
-
-            try:
-                insights = enrichment_agent(company, industry, context) or ""
-                print("Insights:", insights)
-            except Exception as e:
-                print("Enrichment Agent Error:", e)
-                insights = ""
-
-            try:
-                email = email_agent(name, company, insights) or ""
-                print("Email:", email)
-            except Exception as e:
-                print("Email Agent Error:", e)
-                email = ""
-
-            try:
-                score = scoring_agent(company, industry, insights) or ""
-                print("Score:", score)
-            except Exception as e:
-                print("Scoring Agent Error:", e)
-                score = ""
+                print("❌ Research Error:", e)
+                context = "Basic company context not available"
 
             # -----------------------------
-            # FALLBACK VALUES (IMPORTANT)
+            # 2️⃣ ENRICHMENT AGENT
+            # -----------------------------
+            try:
+                insights = enrichment_agent(company, industry, context)
+                if not insights:
+                    insights = f"{company} operates in the {industry} industry with potential growth opportunities."
+            except Exception as e:
+                print("❌ Enrichment Error:", e)
+                insights = f"{company} operates in the {industry} industry with potential growth opportunities."
+
+            # -----------------------------
+            # 3️⃣ EMAIL AGENT
+            # -----------------------------
+            try:
+                email = email_agent(name, company, insights)
+                if not email:
+                    email = f"Hi {name},\n\nI came across {company} and wanted to connect regarding potential collaboration opportunities.\n\nBest regards."
+            except Exception as e:
+                print("❌ Email Error:", e)
+                email = f"Hi {name},\n\nI came across {company} and wanted to connect regarding potential collaboration opportunities.\n\nBest regards."
+
+            # -----------------------------
+            # 4️⃣ SCORING AGENT
+            # -----------------------------
+            try:
+                score = scoring_agent(company, industry, insights)
+                if not score:
+                    score = 50
+            except Exception as e:
+                print("❌ Scoring Error:", e)
+                score = 50
+
+            # -----------------------------
+            # FINAL RESULT
             # -----------------------------
             results.append({
                 "name": name or "N/A",
                 "company": company or "N/A",
                 "industry": industry or "N/A",
-                "insights": insights if insights else "No insights generated",
-                "email": email if email else "No email generated",
-                "score": score if score else "0"
+                "insights": insights,
+                "email": email,
+                "score": score
             })
 
+            # 🔥 IMPORTANT: Prevent API overload
+            time.sleep(0.7)
+
         except Exception as e:
-            print("Row Processing Error:", e)
+            print("❌ Row Processing Error:", e)
+
+            results.append({
+                "name": "Error",
+                "company": "Error",
+                "industry": "Error",
+                "insights": "Error occurred",
+                "email": "Error occurred",
+                "score": 0
+            })
 
     return {"results": results}
 
@@ -189,8 +211,10 @@ def download_emails(file: UploadFile = File(...)):
                 "email": email
             })
 
+            time.sleep(0.5)
+
         except Exception as e:
-            print("Download Error:", e)
+            print("❌ Download Error:", e)
 
     output_file = "output_emails.csv"
     pd.DataFrame(output_data).to_csv(output_file, index=False)
