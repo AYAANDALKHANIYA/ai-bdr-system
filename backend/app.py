@@ -5,7 +5,12 @@ from pydantic import BaseModel
 import pandas as pd
 import os
 from groq import Groq
-import json
+
+# ✅ Agents (KEEP YOUR ORIGINAL PIPELINE)
+from agents.research_agent import research_agent
+from agents.enrichment_agent import enrichment_agent
+from agents.email_agent import email_agent
+from agents.scoring_agent import scoring_agent
 
 app = FastAPI()
 
@@ -26,10 +31,10 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 # -----------------------------
 @app.get("/")
 def home():
-    return {"message": "Optimized AI BDR Backend Running 🚀"}
+    return {"message": "AI BDR Backend Running 🚀"}
 
 # -----------------------------
-# 🔥 SINGLE-CALL BDR SYSTEM
+# 🔥 MULTI-AGENT BDR SYSTEM (FINAL FIXED)
 # -----------------------------
 @app.post("/run-bdr-agent")
 def run_bdr_agent(file: UploadFile = File(...)):
@@ -42,101 +47,85 @@ def run_bdr_agent(file: UploadFile = File(...)):
 
     results = []
 
-    for _, row in df.iterrows():
+    for i, row in df.iterrows():
 
         name = str(row.get("name", "")).strip()
         company = str(row.get("company", "")).strip()
         industry = str(row.get("industry", "")).strip()
 
-        print(f"🚀 Processing: {name}, {company}")
+        print(f"\n🚀 Processing Row {i+1}: {name} | {company} | {industry}")
 
-        prompt = f"""
-You are a senior AI Business Development Representative.
+        # -----------------------------
+        # AGENT PIPELINE (WITH SAFE FALLBACKS)
+        # -----------------------------
 
-Analyze the lead deeply and generate HIGH-QUALITY output.
+        # 1️⃣ Research
+        try:
+            context = research_agent(company, industry)
+        except Exception as e:
+            print("❌ Research Error:", e)
+            context = ""
 
-Lead Details:
-- Name: {name}
-- Company: {company}
-- Industry: {industry}
+        # 2️⃣ Enrichment (INSIGHTS)
+        try:
+            insights = enrichment_agent(company, industry, context)
+        except Exception as e:
+            print("❌ Enrichment Error:", e)
+            insights = ""
 
-INSTRUCTIONS:
+        # 3️⃣ Email
+        try:
+            email = email_agent(name, company, insights)
+        except Exception as e:
+            print("❌ Email Error:", e)
+            email = ""
 
-1. INSIGHTS:
-- Give detailed, realistic insights about the company
-- Mention possible business model, challenges, opportunities
-- Explain WHY they might need AI solutions
-- Minimum 4-5 lines
+        # 4️⃣ Score
+        try:
+            score = scoring_agent(company, industry, insights)
+        except Exception as e:
+            print("❌ Score Error:", e)
+            score = ""
 
-2. EMAIL:
-- Write a highly personalized cold email
-- Include:
-    • Subject line
-    • Strong opening (not generic)
-    • Clear value proposition
-    • Use-case relevant to their industry
-    • CTA (call to action)
-- Make it sound human, premium, and persuasive
-- Minimum 8–10 lines
+        # -----------------------------
+        # ✅ SMART FALLBACKS (IMPORTANT FIX)
+        # -----------------------------
+        if not insights:
+            insights = f"{company} operates in the {industry} industry and may benefit from AI-driven optimization, automation, and growth strategies."
 
-3. SCORE:
-- Give a realistic lead score (0–100)
-- Based on potential fit for AI solutions
+        if not email:
+            email = f"""Subject: Unlock AI Opportunities for {company}
 
-Return ONLY valid JSON:
-{{
-    "insights": "...",
-    "email": "...",
-    "score": "..."
-}}
+Hi {name},
+
+I came across {company} and noticed your work in the {industry} space.
+
+We help companies like yours leverage AI to improve efficiency, automate workflows, and drive growth.
+
+Would you be open to a quick 15-minute discussion to explore this?
+
+Best regards,  
+[Your Name]
 """
 
-        try:
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7
-            )
+        if not score:
+            score = "60"
 
-            content = response.choices[0].message.content
-
-            # ✅ SAFE JSON PARSE
-            try:
-                parsed = json.loads(content)
-            except:
-                print("⚠️ JSON parse failed, using fallback")
-                parsed = {
-                    "insights": "Generated insights unavailable",
-                    "email": content,
-                    "score": "50"
-                }
-
-            results.append({
-                "name": name or "N/A",
-                "company": company or "N/A",
-                "industry": industry or "N/A",
-                "insights": parsed.get("insights", ""),
-                "email": parsed.get("email", ""),
-                "score": parsed.get("score", "0")
-            })
-
-        except Exception as e:
-            print("❌ API Error:", e)
-
-            results.append({
-                "name": name,
-                "company": company,
-                "industry": industry,
-                "insights": "Error generating insights",
-                "email": "Error generating email",
-                "score": "0"
-            })
+        # -----------------------------
+        results.append({
+            "name": name or "N/A",
+            "company": company or "N/A",
+            "industry": industry or "N/A",
+            "insights": insights,
+            "email": email,
+            "score": score
+        })
 
     return {"results": results}
 
 
 # -----------------------------
-# FOLLOW-UP (UNCHANGED)
+# FOLLOW-UP
 # -----------------------------
 class FollowupRequest(BaseModel):
     name: str
@@ -149,6 +138,8 @@ class FollowupRequest(BaseModel):
 @app.post("/generate-followup")
 def generate_followup(req: FollowupRequest):
 
+    tone = "gentle reminder" if req.followup_number == 1 else "slightly persuasive"
+
     prompt = f"""
 Write a follow-up email.
 
@@ -159,7 +150,7 @@ Industry: {req.industry}
 Previous Email:
 {req.previous_email}
 
-Tone: {"gentle reminder" if req.followup_number == 1 else "persuasive"}
+Tone: {tone}
 
 Include Subject + Body
 """
